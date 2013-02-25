@@ -1,108 +1,66 @@
 /*
 * Simpleconvolution.cu
 *
-*   procedure CUDA CONVOLUTION(signal, kernel, K, L, M, norm)
-*     cuMemcpy(gpu s, signal, HostToDevice)
-*     cuMemcpy(gpu k, kernel, HostToDevice)
-*     gpu s ← cuFFT(gpu s)
-*     gpu k ← cuFFT(gpu k)
-*     gpu s ← pwProd(gpu s, gpu k, K, L, M, norm)
-*     gpu s ← cuIFFT(gpu s)
-*     cuMemcpy(signal, gpu s, DeviceToHost)
-*   end procedure
+* procedure CUDA CONVOLUTION(signal, kernel, K, L, M, norm)
+* cuMemcpy(gpu s, signal, HostToDevice)
+* cuMemcpy(gpu k, kernel, HostToDevice)
+* gpu s ← cuFFT(gpu s)
+* gpu k ← cuFFT(gpu k)
+* gpu s ← pwProd(gpu s, gpu k, K, L, M, norm)
+* gpu s ← cuIFFT(gpu s)
+* cuMemcpy(signal, gpu s, DeviceToHost)
+* end procedure
 *
 */
 
-#include <stdio.h>
-#include <cuda.h>
 
-#include <cufft.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
 #include <cuda_runtime.h>
+#include <cufft.h>
 #include <helper_functions.h>
 #include <helper_cuda.h>
 
+#define SIGNAL_SIZE  10
 
-#define BATCH 10
+typedef float2 Complex;
+
+void printData(Complex *a, int size)
+{
+  for (int i = 0; i < size; i++)
+    printf("%f %f\n", a[i].x, a[i].y);
+}
 
 int main()
 {
 
-  int *k_h, *s_d, *k_d;
+  Complex *h_signal, *d_signal;
 
-  cufftComplex *s_h;
+  int alloc_size = SIGNAL_SIZE;
 
-  int size;
+  h_signal = (Complex *) malloc(alloc_size);
 
-  cufftComplex *data;
+  cudaMalloc((void **)&d_signal, alloc_size);
 
-  // xyz dimension size of the sum of signals.
-  int K, L, M;
-
-  printf("Enter K, L, M\n");
-  scanf("%d %d %d", &K, &L, &M);
-
-  size = (sizeof(int) * (K + L + M));
-
-  // Allocate host memory.
-  /*s_h = (int *) malloc(sizeof(int) * size);
-  k_h = (int *) malloc(sizeof(int) * size);
-
-  // Temp.
-  int k, l, m;
-
-  // Generate both signal and kernel for now.
-  for (k = 0; k < K; k++)
-    for (l = 0; l < L; l++)
-      for (m = 0; m < M; m++) {
-        // First fill x, then y and then z.
-        s_h[k + l + m] = m;
-        k_h[k + l + m] = m;
-      }*/
-
-  s_h = (cufftComplex *) malloc(sizeof(cufftComplex) * K * BATCH);
-
-  // Allocate Device Memory.
-  cudaMalloc((void **) &s_d, size);
-  cudaMalloc((void **) &data, (sizeof(cufftComplex) * K * BATCH)); // ComplexData
-  cudaMalloc((void **) &k_d, size);
-
-  // Copy to device.
-  cudaMemcpy(s_d, s_h, size, cudaMemcpyHostToDevice);
-  cudaMemcpy(k_d, k_h, size, cudaMemcpyHostToDevice);
-
-  cufftHandle plan = 1;
-
-  // Do an Dimension first. DFT size of K.
-
-  for (int i = 0; i < (sizeof(cufftComplex) * K * BATCH); i++) {
-    s_h[i].x = i;
-    s_h[i].y = i;
+  for (int i = 0; i < SIGNAL_SIZE; i++) {
+    h_signal[i].x = rand() / (float) RAND_MAX;
+    h_signal[i].y = rand() / (float) RAND_MAX;
   }
 
-  cudaMemcpy(data, s_h, (sizeof(cufftComplex) * K * BATCH), cudaMemcpyHostToDevice);
+  printData(h_signal, 2);
 
-  cufftPlan1d(&plan, K, CUFFT_C2C, BATCH);
+  cudaMemcpy(d_signal, h_signal, alloc_size, cudaMemcpyHostToDevice);
 
-  cufftExecC2C(plan, data, data, CUFFT_FORWARD);
+  cufftHandle plan;
+  cufftPlan1d(&plan, alloc_size, CUFFT_C2C, 1);
 
-  cudaThreadSynchronize();
+  cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD);
 
-  cufftDestroy(plan);
+  cudaMemcpy(h_signal, d_signal, alloc_size, cudaMemcpyDeviceToHost);
 
-  cudaMemcpy(s_h, data, (sizeof(cufftComplex) * K * BATCH), cudaMemcpyDeviceToHost);
+  printData(h_signal, 2);
 
-  cudaFree(data);
-
-  for (int i = 0; i < (sizeof(cufftComplex) * K * BATCH); i++)
-    printf("%f %f \n", s_h[i].x, s_h[i].y);
-
-  // Copy results, back, from the GPU to the CPU.
-  cudaMemcpy(s_h, s_d, size, cudaMemcpyDeviceToHost);
-
-  // Cleanup
-  free(s_h);
-  free(k_h);
-  cudaFree(s_d);
-  cudaFree(k_d);
-
+  return 0;
 }
