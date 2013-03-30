@@ -33,6 +33,14 @@ void printData(Complex *a, int size)
     printf("%f %f\n", a[i].x, a[i].y);
 }
 
+void normData(Complex *a, int size, float norm) {
+
+  for (int i = 0; i < size; i++) {
+    a[i].x /= norm;
+    a[i].y /= norm;
+  }
+}
+
 int main()
 {
 
@@ -40,27 +48,43 @@ int main()
 
   int alloc_size = SIGNAL_SIZE;
 
-  h_signal = (Complex *) malloc(alloc_size);
+  h_signal = (Complex *) malloc(sizeof(Complex) * alloc_size);
 
-  cudaMalloc((void **)&d_signal, alloc_size);
+  checkCudaErrors(cudaMalloc(&d_signal, sizeof(Complex) * alloc_size));
 
   for (int i = 0; i < SIGNAL_SIZE; i++) {
     h_signal[i].x = rand() / (float) RAND_MAX;
-    h_signal[i].y = rand() / (float) RAND_MAX;
+    //h_signal[i].y = rand() / (float) RAND_MAX;
+    h_signal[i].y = 0;
   }
 
-  printData(h_signal, 2);
+  printData(h_signal, alloc_size);
 
-  cudaMemcpy(d_signal, h_signal, alloc_size, cudaMemcpyHostToDevice);
+  checkCudaErrors(cudaMemcpy(d_signal, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice));
 
+  printf("MemCpy Fwd\n");
+
+  // Handle type used to store and execute CUFFT plans.
   cufftHandle plan;
-  cufftPlan1d(&plan, alloc_size, CUFFT_C2C, 1);
+  checkCudaErrors(cufftPlan1d(&plan, alloc_size, CUFFT_C2C, 1));
 
-  cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD);
+  getLastCudaError("Kernel execution failed [ ComplexPointwiseMulAndScale ]");
 
-  cudaMemcpy(h_signal, d_signal, alloc_size, cudaMemcpyDeviceToHost);
+  printf("Plan Created\n");
 
-  printData(h_signal, 2);
+  checkCudaErrors(cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD));
+
+  checkCudaErrors(cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_INVERSE));
+
+  printf("Executed\n");
+
+  checkCudaErrors(cudaMemcpy(h_signal, d_signal, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost));
+
+  printf("MemCpy Bakwd\n");
+
+  normData(h_signal, alloc_size, 10);
+
+  printData(h_signal, alloc_size);
 
   return 0;
 }
