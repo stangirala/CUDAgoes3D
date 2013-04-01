@@ -123,12 +123,12 @@ LDFLAGS       += -lcudart -lcufft
 # Target rules
 all: build
 
-build: simpleCUFFT.out
+build: cudaConv.out
 
-simpleCUFFT.o: simpleCUFFT.cu
+cudaConv.o: cudaConv.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(INCLUDES) $(GENCODE_FLAGS) -o $@ -c $<
 
-simpleCUFFT.out: simpleCUFFT.o
+cudaConv.out: cudaConv.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 	mkdir -p ../../bin/$(OSLOWER)/$(TARGET)
 	cp $@ ../../bin/$(OSLOWER)/$(TARGET)
