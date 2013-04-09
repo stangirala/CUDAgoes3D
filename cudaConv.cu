@@ -23,7 +23,7 @@
 //#include <helper_functions.h>
 //#include <helper_cuda.h>
 
-#define SIGNAL_SIZE  16
+#define SIGNAL_SIZE 10000 
 #define FACTOR 4
 
 typedef float2 Complex;
@@ -100,7 +100,9 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   signal1[globalIdx].y = signal1[globalIdx].y * signal2[globalIdx].y;
 }
 
-void cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2, int size2, const dim3 blockSize, const dim3 gridSize) {
+void
+cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
+                int size2, const dim3 blockSize, const dim3 gridSize) {
 
   signalFFT(d_signal1, size1);
 
@@ -111,23 +113,21 @@ void cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2, int size
   signalIFFT(d_signal1, size1);
 }
 
-void cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2, const dim3 blockSize, const dim3 gridSize, int factor) {
-
-  /*
-   * TODO
-   * Error check the case when the factor does not exactly divide the size.
-   *
-   */
+// factor represents how the DIC algorithm is applied on the convolution.
+// That is, a factor of 16 implies a 16 way split on the signal and a 16 way
+// call on the convolution.
+void
+cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2,
+                   int size2, const dim3 blockSize, const dim3 gridSize, int factor) {
 
   int load, i;
 
   // DIC? What DIC?
-  if (factor > size1) {
+  if (factor >= size1) {
     cudaConvolution(d_signal1, size1, d_signal2, size2, blockSize, gridSize);
   }
   else {
     load = size1 / factor;
-
     for (i = 0; i < load; i++)
       cudaConvolution((d_signal1 + i * load), load, (d_signal2 + i * load), load, blockSize, gridSize);
   }
@@ -146,10 +146,11 @@ int main()
   numRows = alloc_size;
   numCols = alloc_size;
 
-
   // Kernel Block and Grid Size.
   const dim3 blockSize(alloc_size, alloc_size, 1);
   const dim3 gridSize( numRows / alloc_size + 1, numCols / alloc_size + 1, 1);
+  //const dim3 blockSize(4, 4, 1);
+  //const dim3 gridSize( numRows / 4 + 1, numCols / 4 + 1, 1);
 
   h_signal = (Complex *) malloc(sizeof(Complex) * alloc_size);
 
@@ -172,6 +173,7 @@ int main()
   //printData(h_signal, alloc_size, "H2 FFT");
 
   //cudaConvolution(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize);
+  //cudaConvolution(d_signal1, 4, d_signal2, 4, blockSize, gridSize);
   cudaConvolutionDIC(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize, alloc_size);
 
   cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
