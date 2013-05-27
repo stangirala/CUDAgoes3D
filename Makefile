@@ -137,4 +137,4 @@ run: build
 	./simpleCUFFT
 
 clean:
-	rm -f simpleCUFFT.o simpleCUFFT
+	rm -f cudaConv.o
