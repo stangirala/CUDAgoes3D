@@ -108,8 +108,8 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
   if (globalIdx < size1) {
-      signal1[globalIdx].x = signal1[globalIdx].x * signal2[globalIdx].x;
-      signal1[globalIdx].y = signal1[globalIdx].y * signal2[globalIdx].y;
+      signal1[globalIdx].x = signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y;
+      signal1[globalIdx].y = signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x;
     }
 
 }
@@ -123,7 +123,7 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
   pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
 
-  //signalIFFT(d_signal1, size1);
+  signalIFFT(d_signal1, size1);
 
 }
 
@@ -132,7 +132,7 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 // That is, a factor of 16 implies a 16 way split on the signal and a 16 way
 // call on the convolution.
 // Assuming both signals are of the same size.
-/*void
+void
 cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2, dim3 blockSize, dim3 gridSize, int load) {
 
   // TODO Padding!
@@ -146,7 +146,7 @@ cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2,
     for (i = 0; i < size1; i++)
       cudaConvolution((d_signal1 + i * load), load, (d_signal2 + i * load), load, blockSize, gridSize);
   }
-}*/
+}
 
 int main()
 {
@@ -184,11 +184,8 @@ int main()
   cudaDeviceSynchronize();
 
   cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
-  //normData(h_signal, alloc_size, alloc_size);
+  normData(h_signal, alloc_size, alloc_size);
   printData(h_signal, alloc_size, "IFFT");
 
   return 0;
 }
-
-
-  //cudaConvolutionDIC(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize, 2);
