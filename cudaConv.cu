@@ -23,7 +23,7 @@
 
 typedef enum signaltype {REAL, COMPLEX} signal;
 
-typedef float2 Complex;
+typedef float3 Complex;
 
 void
 printData(Complex *a, int size, char *msg) {
@@ -32,7 +32,7 @@ printData(Complex *a, int size, char *msg) {
   else printf("%s\n", msg);
 
   for (int i = 0; i < size; i++)
-    printf("%f %f\n", a[i].x, a[i].y);
+    printf("%f %f %f\n", a[i].x, a[i].y, a[i].z);
 }
 
 void
@@ -41,6 +41,7 @@ normData(Complex *a, int size, float norm) {
   for (int i = 0; i < size; i++) {
     a[i].x /= norm;
     a[i].y /= norm;
+    a[i].x / = norm;
   }
 }
 
@@ -48,28 +49,13 @@ normData(Complex *a, int size, float norm) {
 void
 randomFill(Complex *h_signal, int size, int flag) {
 
-  /*h_signal[0].x = 0.0; h_signal[0].y = 0.0;
-  h_signal[1].x = 0.0; h_signal[1].y = 0.0;
-  h_signal[2].x = 0.0; h_signal[2].y = 0.0;
-  h_signal[3].x = 0.0; h_signal[3].y = 0.0;
-  h_signal[4].x = 1.0; h_signal[4].y = 0.0;
-  h_signal[5].x = 2.0; h_signal[5].y = 0.0;
-  h_signal[6].x = 3.0; h_signal[6].y = 0.0;
-  h_signal[7].x = 4.0; h_signal[7].y = 0.0;
-  h_signal[8].x = 5.0; h_signal[8].y = 0.0;
-  h_signal[9].x = 4.0; h_signal[9].y = 0.0;
-  h_signal[10].x = 3.0; h_signal[10].y = 0.0;
-  h_signal[11].x = 2.0; h_signal[11].y = 0.0;
-  h_signal[12].x = 1.0; h_signal[12].y = 0.0;
-  h_signal[13].x = 0.0; h_signal[13].y = 0.0;
-  h_signal[14].x = 0.0; h_signal[14].y = 0.0;
-  h_signal[15].x = 0.0; h_signal[15].y = 0.0;*/
-
   // Real signal.
   if (flag == REAL) {
     for (int i = 0; i < size; i++) {
       h_signal[i].x = rand() / (float) RAND_MAX;
-      h_signal[i].y = 0;
+      h_signal[i].y = rand() / (float) RAND_MAX;
+      h_signal[i].z = rand() / (float) RAND_MAX;
+      //h_signal[i].y = 0;
     }
   }
 }
@@ -83,27 +69,40 @@ signalFFT(Complex *d_signal, int signal_size) {
   // them.
 
   cufftHandle plan;
-  cufftPlan1d(&plan, signal_size, CUFFT_C2C, 1);
+  if (cufftPlan1d(&plan, signal_size, CUFFT_C2C, 1) != CUFFT_SUCCESS) {
+    printf("Failed to plan FFT\n");
+    exit(0);
+  }
 
   // Execute the plan.
-  cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD);
+  if (cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD) != CUFFT_SUCCESS) {
+    printf ("Failed Executing FFT\n");
+    exit(0);
+  }
+
 }
 
+
+// Reverse of the signalFFT(.) function.
 void
 signalIFFT(Complex *d_signal, int signal_size) {
 
-  // Reverse of the signalFFT(.) function.
-
   cufftHandle plan;
-  cufftPlan1d(&plan, signal_size, CUFFT_C2C, 10);
-  //cufftPlan2d(&plan, signal_size, signal_size, CUFFT_R2C);
+  if (cufftPlan1d(&plan, signal_size, CUFFT_C2C, 1) != CUFFT_SUCCESS) {
+    printf("Failed to plan IFFT\n");
+    exit(0);
+  }
 
-  cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_INVERSE);
+  if (cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_INVERSE) != CUFFT_SUCCESS) {
+    printf ("Failed Executing FFT\n");
+    exit(0);
+  }
 }
+
 
 // Pointwise Multiplication Kernel.
 __global__ void
-pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
+pwProd(Complex *signal1, int size1, Complex *signal2, int size2, int norm) {
 
   int threadsPerBlock, blockId, globalIdx;
 
@@ -111,18 +110,12 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   blockId = blockIdx.x + (blockIdx.y * gridDim.x);
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
-  signal1[globalIdx].x = signal1[globalIdx].x * signal2[globalIdx].x;
-  signal1[globalIdx].y = signal1[globalIdx].y * signal2[globalIdx].y;
+  if (globalIdx < size1) {
 
+    signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y) / norm;
 
-  /*int numThreads, threadID;
-  numThreads = blockDim.x * gridDim.x;
-  threadID = blockIdx.x * blockDim.x + threadIdx.x;
-
-  for (int i = threadID; i < size1; i += numThreads) {
-    signal1[i].x = signal1[i].x * signal2[i].x;
-    signal1[i].y = signal1[i].y * signal2[i].y;
-  }*/
+    signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x) / norm;
+  }
 
 }
 
@@ -131,25 +124,15 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize) {
 
   Complex *h_signal;
-  int alloc_size = size1;
 
-  h_signal = (Complex *) malloc(sizeof(Complex) * alloc_size);
+  cudaMalloc(&h_signal, sizeof(Complex) * size1);
 
   signalFFT(d_signal1, size1);
-  cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
-  printData(h_signal, alloc_size, "1FFT");
+  signalFFT(d_signal2, size2);
 
-  /*signalFFT(d_signal2, size2);
-  cudaMemcpy(h_signal, d_signal2, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
-  printData(h_signal, alloc_size, "2FFT");
-
-  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
-  cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
-  printData(h_signal, alloc_size, "PwPrd");
+  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2, 1);
 
   signalIFFT(d_signal1, size1);
-  cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
-  printData(h_signal, alloc_size, "IFFT");*/
 
 }
 
@@ -173,10 +156,8 @@ cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2,
   if (load >= size1) {
     cudaConvolution(d_signal1, load, d_signal2, load, blockSize, gridSize);
   }
-  else {
-    // Wrong
-    blockSize.x = load;
-    for (i = 0; i < size1 / 2; i += 2)
+  else{
+    for (i = 0; i < size1; i++)
       cudaConvolution((d_signal1 + i * load), load, (d_signal2 + i * load), load, blockSize, gridSize);
   }
 }
@@ -199,6 +180,10 @@ int main()
   h_signal = (Complex *) malloc(sizeof(Complex) * alloc_size);
 
   cudaMalloc(&d_signal1, sizeof(Complex) * alloc_size);
+  if (cudaGetLastError() != cudaSuccess){
+    printf("Cuda error: Failed to allocate\n");
+    exit(0);
+  }
   cudaMalloc(&d_signal2, sizeof(Complex) * alloc_size);
 
   // Add random data to signal.
@@ -207,18 +192,17 @@ int main()
   printData(h_signal, alloc_size, "Random H1");
   cudaMemcpy(d_signal1, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
 
-  //randomFill(h_signal, alloc_size, REAL);
-  /*printData(h_signal, alloc_size, "Random H2");
-  cudaMemcpy(d_signal2, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);*/
+  printData(h_signal, alloc_size, "Random H2");
+  cudaMemcpy(d_signal2, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
 
   cudaConvolution(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize);
   //cudaConvolutionDIC(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize, 2);
 
   cudaDeviceSynchronize();
 
-  /*cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
-  //normData(h_signal, alloc_size, 10);
-  printData(h_signal, alloc_size, "D1 * D2");*/
+  cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
+  normData(h_signal, alloc_size, alloc_size);
+  printData(h_signal, alloc_size, "Conv");
 
   return 0;
 }
