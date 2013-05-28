@@ -23,7 +23,7 @@
 
 typedef enum signaltype {REAL, COMPLEX} signal;
 
-typedef float3 Complex;
+typedef float2 Complex;
 
 void
 printData(Complex *a, int size, char *msg) {
@@ -32,7 +32,7 @@ printData(Complex *a, int size, char *msg) {
   else printf("%s\n", msg);
 
   for (int i = 0; i < size; i++)
-    printf("%f %f %f\n", a[i].x, a[i].y, a[i].z);
+    printf("%f %f\n", a[i].x, a[i].y);
 }
 
 void
@@ -41,7 +41,6 @@ normData(Complex *a, int size, float norm) {
   for (int i = 0; i < size; i++) {
     a[i].x /= norm;
     a[i].y /= norm;
-    a[i].x / = norm;
   }
 }
 
@@ -53,9 +52,7 @@ randomFill(Complex *h_signal, int size, int flag) {
   if (flag == REAL) {
     for (int i = 0; i < size; i++) {
       h_signal[i].x = rand() / (float) RAND_MAX;
-      h_signal[i].y = rand() / (float) RAND_MAX;
-      h_signal[i].z = rand() / (float) RAND_MAX;
-      //h_signal[i].y = 0;
+      h_signal[i].y = 0;
     }
   }
 }
@@ -102,7 +99,7 @@ signalIFFT(Complex *d_signal, int signal_size) {
 
 // Pointwise Multiplication Kernel.
 __global__ void
-pwProd(Complex *signal1, int size1, Complex *signal2, int size2, int norm) {
+pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 
   int threadsPerBlock, blockId, globalIdx;
 
@@ -111,11 +108,9 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2, int norm) {
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
   if (globalIdx < size1) {
-
-    signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y) / norm;
-
-    signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x) / norm;
-  }
+      signal1[globalIdx].x = signal1[globalIdx].x * signal2[globalIdx].x;
+      signal1[globalIdx].y = signal1[globalIdx].y * signal2[globalIdx].y;
+    }
 
 }
 
@@ -123,30 +118,21 @@ void
 cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize) {
 
-  Complex *h_signal;
-
-  cudaMalloc(&h_signal, sizeof(Complex) * size1);
-
   signalFFT(d_signal1, size1);
   signalFFT(d_signal2, size2);
 
-  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2, 1);
+  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
 
-  signalIFFT(d_signal1, size1);
+  //signalIFFT(d_signal1, size1);
 
 }
 
-
-// Swap stuff to get the DIC FFT order correct.
-/*__global__ void
-swap(Complex *d_signal1, int size1) {
-}*/
 
 // factor represents how the DIC algorithm is applied on the convolution.
 // That is, a factor of 16 implies a 16 way split on the signal and a 16 way
 // call on the convolution.
 // Assuming both signals are of the same size.
-void
+/*void
 cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2, dim3 blockSize, dim3 gridSize, int load) {
 
   // TODO Padding!
@@ -160,12 +146,10 @@ cudaConvolutionDIC(Complex *d_signal1, int size1, Complex *d_signal2, int size2,
     for (i = 0; i < size1; i++)
       cudaConvolution((d_signal1 + i * load), load, (d_signal2 + i * load), load, blockSize, gridSize);
   }
-}
+}*/
 
 int main()
 {
-
-  // #define alloc_size 10000
 
   Complex *h_signal, *d_signal1, *d_signal2;
 
@@ -196,13 +180,15 @@ int main()
   cudaMemcpy(d_signal2, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
 
   cudaConvolution(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize);
-  //cudaConvolutionDIC(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize, 2);
 
   cudaDeviceSynchronize();
 
   cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
-  normData(h_signal, alloc_size, alloc_size);
-  printData(h_signal, alloc_size, "Conv");
+  //normData(h_signal, alloc_size, alloc_size);
+  printData(h_signal, alloc_size, "IFFT");
 
   return 0;
 }
+
+
+  //cudaConvolutionDIC(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize, 2);
