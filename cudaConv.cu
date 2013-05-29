@@ -1,19 +1,3 @@
-/*
-* Simpleconvolution.cu
-*
-* procedure CUDA CONVOLUTION(signal, kernel, K, L, M, norm)
-* cuMemcpy(gpu s, signal, HostToDevice)
-* cuMemcpy(gpu k, kernel, HostToDevice)
-* gpu s ← cuFFT(gpu s)
-* gpu k ← cuFFT(gpu k)
-* gpu s ← pwProd(gpu s, gpu k, K, L, M, norm)
-* gpu s ← cuIFFT(gpu s)
-* cuMemcpy(signal, gpu s, DeviceToHost)
-* end procedure
-*
-*/
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -128,54 +112,6 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
 }
 
-
-void
-cudaConvolutionDIC(Complex *h1, int size1, Complex *h2, int size2, dim3 blockSize, dim3 gridSize) {
-
-  // TODO Padding!
-
-  int i, alloc_size = 16;
-
-  Complex *d_signal1, *d_signal2, temp;
-
-  cudaMalloc(&d_signal1, sizeof(Complex) * alloc_size);
-  cudaMalloc(&d_signal2, sizeof(Complex) * alloc_size);
-
-  for (i = 0; i < size1/2; i++) {
-    h1[i].x = (h1[i + size2 / 2].x + h1[i].x);
-    h1[i].y = (h1[i + size2 / 2].y + h1[i].y);
-  }
-  for (i = size1/2; i < size1; i++) {
-    h1[i].x = (h1[i].x - h1[i - size2 / 2].x) * exp(-2 * 3.14159 * (size1/2 - i)/size1);
-    h1[i].y = (h1[i].y - h1[i - size2 / 2].y) * exp(-2 * 3.14159 * (size1/2 - i)/size1);
-  }
-
-  for (i = 0; i < size2/2; i++) {
-    h2[i].x = (h2[i + size2 / 2].x + h2[i].x);
-    h2[i].y = (h2[i + size2 / 2].y + h2[i].y);
-  }
-  for (i = size2/2; i < size1/2; i++) {
-    h2[i].x = (h2[i].x - h2[i - size2 / 2].x) * exp(-2 * 3.14159 * (size1/2 - i)/size2);
-    h2[i].y = (h2[i].y - h2[i - size2 / 2].y) * exp(-2 * 3.14159 * (size1/2 - i)/size2);
-  }
-
-  cudaMemcpy(d_signal1, h1, sizeof(Complex) * size1, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_signal2, h2, sizeof(Complex) * size2, cudaMemcpyHostToDevice);
-
-  cudaConvolution(d_signal1, size1/2, d_signal2, size2/2, blockSize, gridSize);
-  cudaConvolution(d_signal1 + size1/2, size1/2, d_signal2 + size2/2, size2/2, blockSize, gridSize);
-
-  cudaMemcpy(h1, d_signal1, sizeof(Complex) * size1, cudaMemcpyDeviceToHost);
-
-  for (i = 1; i < size1 / 2 - 1; i += 2) {
-
-    temp = h1[i];
-    h1[i] = h1[i + size1 / 2 - 1];
-    h1[i + size1 / 2] = temp;
-  }
-
-}
-
 void allocateAndPad(Complex **a, int size) {
 
   int oldsize = size, i;
@@ -214,12 +150,9 @@ int main()
   h2 = (Complex *) malloc(sizeof(Complex) * alloc_size);
 
 
-  type = 0;
   dim = 1;
 
   for (i = 0; i < dim; i++)  {
-
-    if (type == 1) {
 
       allocateAndPad(&h_signal, 16);
 
@@ -242,21 +175,6 @@ int main()
       normData(h_signal, alloc_size, alloc_size);
 
       printData(h_signal, alloc_size, "Conv");
-    }
-    else {
-
-      randomFill(h1, alloc_size, REAL);
-      randomFill(h2, alloc_size, REAL);
-
-      printData(h1, alloc_size, "H1");
-      printData(h2, alloc_size, "H2");
-
-      cudaConvolutionDIC(h1, alloc_size, h2, alloc_size, blockSize, gridSize);
-      cudaDeviceSynchronize();
-      normData(h1, alloc_size, alloc_size);
-      printData(h1, alloc_size, "Conv");
-    }
-
   }
 
   return 0;
