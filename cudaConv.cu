@@ -112,29 +112,42 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
 }
 
-void allocateAndPad(Complex **a, int size) {
 
-  int oldsize = size, i;
+int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
 
-  while (!((size != 0) && !(size & (size - 1)))) {
-    size++;
+  int oldsize, i;
+
+  oldsize = s1;
+  while (!((s1 != 0) && !(s1 & (s1 - 1)))) {
+    s1++;
   }
 
-  *a = (Complex *) malloc(sizeof(Complex) * size);
-  for (i = oldsize; i < size; i++) {
+  *a = (Complex *) malloc(sizeof(Complex) * s1);
+  for (i = oldsize; i < s1; i++) {
     (*a)[i].x = 0;
     (*a)[i].y = 0;
   }
+
+  oldsize = s2;
+  while (!((s2 != 0) && !(s2 & (s2 - 1)) && (s1 == s2))) {
+    s2++;
+  }
+
+  *b = (Complex *) malloc(sizeof(Complex) * s2);
+  for (i = oldsize; i < s2; i++) {
+    (*b)[i].x = 0;
+    (*b)[i].y = 0;
+  }
+
+  return s1;
 }
 
 int main()
 {
 
-  Complex *h_signal, *d_signal1, *d_signal2, *h1, *h2;
+  Complex *h1, *h2, *d_signal1, *d_signal2;
 
-  int alloc_size, i, type, dim;
-
-  alloc_size = 16;
+  int s1, s2, newsize, i, dim;
 
   int deviceCount;
   cudaError_t e = cudaGetDeviceCount(&deviceCount);
@@ -142,39 +155,42 @@ int main()
     return -1;
   }
 
-  // Kernel Block and Grid Size.
-  const dim3 blockSize(16, 16, 1);
-  const dim3 gridSize(alloc_size / 16 + 1, alloc_size / 16 + 1, 1);
-
-  h1 = (Complex *) malloc(sizeof(Complex) * alloc_size);
-  h2 = (Complex *) malloc(sizeof(Complex) * alloc_size);
-
-
   dim = 1;
+
+  s1 = 16;
+  s2 = 16;
 
   for (i = 0; i < dim; i++)  {
 
-      allocateAndPad(&h_signal, 16);
+      //newsize = allocateAndPad(&h1, s1, &h2, s2);
+      h1 = (Complex *) malloc(sizeof(Complex) * s1);
+      h2 = (Complex *) malloc(sizeof(Complex) * s2);
+      newsize = 16;
+      randomFill(h1, s1, REAL);
+      randomFill(h2, s2, REAL);
 
-      randomFill(h_signal, 16, REAL);
+      // Kernel Block and Grid Size.
+      const dim3 blockSize(16, 16, 1);
+      const dim3 gridSize(newsize / 16 + 1, newsize / 16 + 1, 1);
 
-      printData(h_signal, alloc_size, "H Signal 1");
-      printData(h_signal, alloc_size, "H Signal 2");
+      printf("New size is %d\n", newsize);
+      printData(h1, newsize, "H Signal 1");
+      printData(h2, newsize, "H Signal 2");
 
-      cudaMalloc(&d_signal1, sizeof(Complex) * alloc_size);
-      cudaMalloc(&d_signal2, sizeof(Complex) * alloc_size);
-      cudaMemcpy(d_signal1, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
-      cudaMemcpy(d_signal2, h_signal, sizeof(Complex) * alloc_size, cudaMemcpyHostToDevice);
+      cudaMalloc(&d_signal1, sizeof(Complex) * newsize);
+      cudaMalloc(&d_signal2, sizeof(Complex) * newsize);
+      cudaMemcpy(d_signal1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
+      cudaMemcpy(d_signal2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
 
-      cudaConvolution(d_signal1, alloc_size, d_signal2, alloc_size, blockSize, gridSize);
+      cudaConvolution(d_signal1, newsize, d_signal2, newsize, blockSize, gridSize);
 
       cudaDeviceSynchronize();
 
-      cudaMemcpy(h_signal, d_signal1, sizeof(Complex) * alloc_size, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h1, d_signal1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
 
-      normData(h_signal, alloc_size, alloc_size);
+      normData(h1, newsize, newsize);
 
-      printData(h_signal, alloc_size, "Conv");
+      printData(h1, newsize, "FFT H1");
   }
 
   return 0;
