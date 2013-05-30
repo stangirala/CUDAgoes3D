@@ -115,37 +115,37 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
 int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
 
-  int oldsize, i;
+  int oldsize, newsize, i;
 
-  oldsize = s1;
-  while (!((s1 != 0) && !(s1 & (s1 - 1)))) {
-    s1++;
+  newsize = s1 + s2 - 1;
+
+  while (!((newsize != 0) && !(newsize & (newsize - 1)))) {
+    newsize++;
   }
 
-  *a = (Complex *) malloc(sizeof(Complex) * s1);
-  for (i = oldsize; i < s1; i++) {
+  oldsize = s1;
+  *a = (Complex *) malloc(sizeof(Complex) * newsize);
+  for (i = oldsize; i < newsize; i++) {
     (*a)[i].x = 0;
     (*a)[i].y = 0;
   }
 
   oldsize = s2;
-  while (!((s2 != 0) && !(s2 & (s2 - 1)) && (s1 == s2))) {
-    s2++;
-  }
-
   *b = (Complex *) malloc(sizeof(Complex) * s2);
-  for (i = oldsize; i < s2; i++) {
+  for (i = oldsize; i < newsize; i++) {
     (*b)[i].x = 0;
     (*b)[i].y = 0;
   }
 
-  return s1;
+  return newsize;
 }
 
 int main()
 {
 
   Complex *h1, *h2, *d_signal1, *d_signal2;
+
+  cudaError_t error;
 
   int s1, s2, newsize, i, dim;
 
@@ -162,25 +162,41 @@ int main()
 
   for (i = 0; i < dim; i++)  {
 
-      //newsize = allocateAndPad(&h1, s1, &h2, s2);
-      h1 = (Complex *) malloc(sizeof(Complex) * s1);
-      h2 = (Complex *) malloc(sizeof(Complex) * s2);
-      newsize = 16;
+      newsize = allocateAndPad(&h1, s1, &h2, s2);
       randomFill(h1, s1, REAL);
       randomFill(h2, s2, REAL);
+
+      //h1 = (Complex *) malloc(sizeof(Complex) * s1);
+      //h2 = (Complex *) malloc(sizeof(Complex) * s2);
+      //newsize = 16;
+      //randomFill(h1, s1, REAL);
+      //randomFill(h2, s2, REAL);
 
       // Kernel Block and Grid Size.
       const dim3 blockSize(16, 16, 1);
       const dim3 gridSize(newsize / 16 + 1, newsize / 16 + 1, 1);
 
-      printf("New size is %d\n", newsize);
       printData(h1, newsize, "H Signal 1");
       printData(h2, newsize, "H Signal 2");
 
+      printf("Done printing\n");
+
       cudaMalloc(&d_signal1, sizeof(Complex) * newsize);
+      printf ("Allocating d h1\n");
+      if ((error = cudaGetLastError()) != cudaSuccess) {
+        printf ("Cuda Error: %s", cudaGetErrorString(error));
+      }
       cudaMalloc(&d_signal2, sizeof(Complex) * newsize);
+      if ((error = cudaGetLastError()) != cudaSuccess) {
+        printf ("Cuda Error: %s", cudaGetErrorString(error));
+      }
+
+      printf("Trying to copy to device\n");
+
       cudaMemcpy(d_signal1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
       cudaMemcpy(d_signal2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
+
+      printf("Trying to convolve\n");
 
       cudaConvolution(d_signal1, newsize, d_signal2, newsize, blockSize, gridSize);
 
