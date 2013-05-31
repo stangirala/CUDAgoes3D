@@ -21,6 +21,9 @@ void
 randomFill(Complex *h_signal, int size, int flag);
 
 void
+zeroFill(Complex *h_signal, int size);
+
+void
 signalFFT(Complex *d_signal, int signal_size);
 
 
