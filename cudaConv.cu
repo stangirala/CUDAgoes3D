@@ -1,3 +1,5 @@
+#include <cudaConv.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -6,9 +8,23 @@
 #include <cufft.h>
 #include <cuda.h>
 
-typedef enum signaltype {REAL, COMPLEX} signal;
 
-typedef float2 Complex;
+int checkCUDA() {
+
+  if ((system("nvidia-settings -q gpus")) == 0) {
+
+    int deviceCount;
+    cudaError_t e = cudaGetDeviceCount(&deviceCount);
+    if (e != cudaSuccess) {
+      return 1;
+    }
+  }
+  else
+    return 1;
+
+  return 0;
+}
+
 
 void
 printData(Complex *a, int size, char *msg) {
@@ -92,9 +108,10 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   blockId = blockIdx.x + (blockIdx.y * gridDim.x);
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
-  if (globalIdx < size1) {
-      signal1[globalIdx].x = signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y;
-      signal1[globalIdx].y = signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x;
+  if (globalIdx <= size1) {
+
+      signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y);
+      signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x);
     }
 
 }
@@ -108,7 +125,7 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
   pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
 
-  signalIFFT(d_signal1, size1);
+  //signalIFFT(d_signal1, size1);
 
 }
 
@@ -131,7 +148,7 @@ int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
   }
 
   oldsize = s2;
-  *b = (Complex *) malloc(sizeof(Complex) * s2);
+  *b = (Complex *) malloc(sizeof(Complex) * newsize);
   for (i = oldsize; i < newsize; i++) {
     (*b)[i].x = 0;
     (*b)[i].y = 0;
@@ -143,17 +160,16 @@ int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
 int main()
 {
 
-  Complex *h1, *h2, *d_signal1, *d_signal2;
-
-  cudaError_t error;
+  Complex *h1, *h2, *d1, *d2;
 
   int s1, s2, newsize, i, dim;
 
-  int deviceCount;
-  cudaError_t e = cudaGetDeviceCount(&deviceCount);
-  if (e != cudaSuccess) {
-    return -1;
+
+  if (checkCUDA()) {
+    printf ("CUDA FAIL\n");
+    exit(0);
   }
+
 
   dim = 1;
 
@@ -163,14 +179,9 @@ int main()
   for (i = 0; i < dim; i++)  {
 
       newsize = allocateAndPad(&h1, s1, &h2, s2);
+
       randomFill(h1, s1, REAL);
       randomFill(h2, s2, REAL);
-
-      //h1 = (Complex *) malloc(sizeof(Complex) * s1);
-      //h2 = (Complex *) malloc(sizeof(Complex) * s2);
-      //newsize = 16;
-      //randomFill(h1, s1, REAL);
-      //randomFill(h2, s2, REAL);
 
       // Kernel Block and Grid Size.
       const dim3 blockSize(16, 16, 1);
@@ -179,34 +190,25 @@ int main()
       printData(h1, newsize, "H Signal 1");
       printData(h2, newsize, "H Signal 2");
 
-      printf("Done printing\n");
+      cudaMalloc(&d1, sizeof(Complex) * newsize);
+      cudaMalloc(&d2, sizeof(Complex) * newsize);
+      cudaMemcpy(d1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
+      cudaMemcpy(d2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
 
-      cudaMalloc(&d_signal1, sizeof(Complex) * newsize);
-      printf ("Allocating d h1\n");
-      if ((error = cudaGetLastError()) != cudaSuccess) {
-        printf ("Cuda Error: %s", cudaGetErrorString(error));
-      }
-      cudaMalloc(&d_signal2, sizeof(Complex) * newsize);
-      if ((error = cudaGetLastError()) != cudaSuccess) {
-        printf ("Cuda Error: %s", cudaGetErrorString(error));
-      }
+      cudaConvolution(d1, newsize, d2, newsize, blockSize, gridSize);
 
-      printf("Trying to copy to device\n");
+      //cudaDeviceSynchronize();
 
-      cudaMemcpy(d_signal1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
-      cudaMemcpy(d_signal2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
-
-      printf("Trying to convolve\n");
-
-      cudaConvolution(d_signal1, newsize, d_signal2, newsize, blockSize, gridSize);
-
-      cudaDeviceSynchronize();
-
-      cudaMemcpy(h1, d_signal1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h1, d1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
 
       normData(h1, newsize, newsize);
 
-      printData(h1, newsize, "FFT H1");
+      printData(h1, newsize, "Conv");
+
+      free(h1); free(h2);
+      cudaFree(d1); cudaFree(d2);
+
+      cudaDeviceReset();
   }
 
   return 0;

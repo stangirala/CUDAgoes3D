@@ -41,6 +41,8 @@ OSLOWER = $(shell uname -s 2>/dev/null | tr [:upper:] [:lower:])
 OS_SIZE = $(shell uname -m | sed -e "s/i.86/32/" -e "s/x86_64/64/")
 OS_ARCH = $(shell uname -m | sed -e "s/i386/i686/")
 
+dbg=1
+
 # These flags will override any settings
 ifeq ($(i386),1)
 	OS_SIZE = 32
