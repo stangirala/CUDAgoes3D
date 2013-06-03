@@ -160,32 +160,14 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 void
 pwProd1(Complex *signal1, int size1, Complex *signal2, int size2) {
 
+  Complex temp;
+
   for (int i = 0; i < size1; i++) {
 
-    if (i == 1) {
-      printf("\n\ni == 1\n\n");
-
-      /*printf ("signa1[i].x %f\n", signal1[i].x);
-      printf ("signa1[i].y %f\n", signal1[i].y);
-      printf ("signa2[i].x %f\n", signal2[i].x);
-      printf ("signa2[i].y %f\n", signal2[i].y);
-      printf ("signal1[i].x * signal2[i].x %f\n", signal1[i].x * signal2[i].x);
-      printf ("signal1[i].y * signal2[i].y %f\n", signal1[i].y * signal2[i].y);
-      printf ("signal1[i].x * signal2[i].y %f\n", signal1[i].x * signal2[i].y);
-      printf ("signal1[i].y * signal2[i].x %f\n", signal1[i].y * signal2[i].x);
-      printf ("signal1[i].x * signal2[i].x + signal1[i].y * signal2[i].y %f\n", signal1[i].x * signal2[i].x - signal1[i].y * signal2[i].y);
-
-      printf ("signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x %f\n", signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x);
-
-      printf("\n\n\n");*/
-    }
-
-    signal1[i].x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
-    if (i == 1) {
-      printf("\n\nY part here : %f\n\n", (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x));
-    }
-
-   signal1[i].y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    signal1[i].x = temp.x;
+    signal1[i].y = temp.y;
   }
 }
 
