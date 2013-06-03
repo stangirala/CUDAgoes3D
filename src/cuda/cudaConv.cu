@@ -133,6 +133,7 @@ __global__ void
 pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 
   int threadsPerBlock, blockId, globalIdx, i;
+  Complex temp;
 
   threadsPerBlock = blockDim.x * blockDim.y;
   blockId = blockIdx.x + (blockIdx.y * gridDim.x);
@@ -142,9 +143,13 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 
   if (globalIdx < size1) {
 
-      signal1[i].x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
-      signal1[i].y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
-    }
+    temp.x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    temp.y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+    signal1[i].x = temp.x;
+    signal1[i].y = temp.y;
+    //  signal1[i].x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    //  signal1[i].y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+  }
 
 
   /*const int numThreads = blockDim.x * gridDim.x;
