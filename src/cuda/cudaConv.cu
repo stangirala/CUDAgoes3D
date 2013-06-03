@@ -11,7 +11,10 @@
 
 int checkCUDA() {
 
-  if ((system("nvidia-settings -q gpus >/dev/null")) == 0) {
+  //TODO: Check that it is linux first.
+
+  //if ((system("nvidia-settings -q gpus >/dev/null")) == 0) {
+  if ((system("ls -la /dev | grep -q nvidia")) == 0) {
 
     int deviceCount;
     cudaError_t e = cudaGetDeviceCount(&deviceCount);
@@ -129,16 +132,18 @@ signalIFFT(Complex *d_signal, int signal_size) {
 __global__ void
 pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 
-  int threadsPerBlock, blockId, globalIdx;
+  int threadsPerBlock, blockId, globalIdx, i;
 
   threadsPerBlock = blockDim.x * blockDim.y;
   blockId = blockIdx.x + (blockIdx.y * gridDim.x);
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
+  i = globalIdx;
+
   if (globalIdx < size1) {
 
-      signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x) - (signal1[globalIdx].y * signal2[globalIdx].y);
-      signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y) + (signal1[globalIdx].y * signal2[globalIdx].x);
+      signal1[i].x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+      signal1[i].y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
     }
 
 
@@ -153,6 +158,38 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
 }
 
 void
+pwProd1(Complex *signal1, int size1, Complex *signal2, int size2) {
+
+  for (int i = 0; i < size1; i++) {
+
+    if (i == 1) {
+      printf("\n\ni == 1\n\n");
+
+      /*printf ("signa1[i].x %f\n", signal1[i].x);
+      printf ("signa1[i].y %f\n", signal1[i].y);
+      printf ("signa2[i].x %f\n", signal2[i].x);
+      printf ("signa2[i].y %f\n", signal2[i].y);
+      printf ("signal1[i].x * signal2[i].x %f\n", signal1[i].x * signal2[i].x);
+      printf ("signal1[i].y * signal2[i].y %f\n", signal1[i].y * signal2[i].y);
+      printf ("signal1[i].x * signal2[i].y %f\n", signal1[i].x * signal2[i].y);
+      printf ("signal1[i].y * signal2[i].x %f\n", signal1[i].y * signal2[i].x);
+      printf ("signal1[i].x * signal2[i].x + signal1[i].y * signal2[i].y %f\n", signal1[i].x * signal2[i].x - signal1[i].y * signal2[i].y);
+
+      printf ("signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x %f\n", signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x);
+
+      printf("\n\n\n");*/
+    }
+
+    signal1[i].x = (signal1[i].x * signal2[i].x) - (signal1[i].y * signal2[i].y);
+    if (i == 1) {
+      printf("\n\nY part here : %f\n\n", (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x));
+    }
+
+   signal1[i].y = (signal1[i].x * signal2[i].y) + (signal1[i].y * signal2[i].x);
+  }
+}
+
+void
 cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize) {
 
@@ -160,12 +197,31 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
   //h1 = (Complex *)malloc(sizeof(Complex) * size1);
 
   signalFFT(d_signal1, size1);
+  if ((cudaGetLastError()) != cudaSuccess)
+    printf ("signal 1 fft failed.\n");
+
   signalFFT(d_signal2, size2);
+  if ((cudaGetLastError()) != cudaSuccess)
+    printf ("signal 2 fft failed.\n");
 
   printDeviceData(d_signal1, size1, "H1 FFT");
   printDeviceData(d_signal2, size2, "H2 FFT");
-  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
-  printDeviceData(d_signal1, size1, "PwProd");
+
+  //pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
+  //if ((cudaGetLastError()) != cudaSuccess)
+  //  printf ("pwProd kernel failed.\n");
+  //printDeviceData(d_signal1, size1, "PwProd");
+
+  Complex *h1, *h2;
+
+  h1 = (Complex *) malloc(sizeof(Complex) * size1);
+  h2 = (Complex *) malloc(sizeof(Complex) * size1);
+  cudaMemcpy(h1, d_signal1, sizeof(Complex) * size2, cudaMemcpyDeviceToHost);
+  cudaMemcpy(h2, d_signal2, sizeof(Complex) * size2, cudaMemcpyDeviceToHost);
+  pwProd1(h1, size1, h2, size2);
+
+  printHostData(h1, size1, "");
+
 
 
 /*h1[0].x = 64.7652;      h1[0].y = 0;
@@ -205,6 +261,8 @@ h1[31].x = -20.0979;    h1[31].y = 1.7253;*/
   //cudaMemcpy(d_signal1, h1, sizeof(Complex) * size1, cudaMemcpyHostToDevice);
 
   //signalIFFT(d_signal1, size1);
+  //if ((cudaGetLastError()) != cudaSuccess)
+  //  printf ("signal ifft failed.\n");
 
 }
 
