@@ -27,7 +27,7 @@ int checkCUDA() {
 
 
 void
-printData(Complex *a, int size, char *msg) {
+printHostData(Complex *a, int size, char *msg) {
 
   if (msg == "") printf("\n");
   else printf("%s\n", msg);
@@ -35,6 +35,24 @@ printData(Complex *a, int size, char *msg) {
   for (int i = 0; i < size; i++)
     printf("%f %f\n", a[i].x, a[i].y);
 }
+
+
+void
+printDeviceData(Complex *a, int size, char *msg) {
+
+  Complex *h;
+
+  h = (Complex *) malloc(sizeof(Complex) * size);
+
+  if (msg == "") printf("\n");
+  else printf("%s\n", msg);
+
+  cudaMemcpy(h, a, sizeof(Complex) * size, cudaMemcpyDeviceToHost);
+
+  for (int i = 0; i < size; i++)
+    printf("%f %f\n", h[i].x, h[i].y);
+}
+
 
 void
 normData(Complex *a, int size, float norm) {
@@ -117,11 +135,20 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   blockId = blockIdx.x + (blockIdx.y * gridDim.x);
   globalIdx = (blockId * threadsPerBlock) + threadIdx.x + (threadIdx.y * blockDim.x);
 
-  if (globalIdx <= size1) {
+  if (globalIdx < size1) {
 
-      signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x - signal1[globalIdx].y * signal2[globalIdx].y);
-      signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y + signal1[globalIdx].y * signal2[globalIdx].x);
+      signal1[globalIdx].x = (signal1[globalIdx].x * signal2[globalIdx].x) - (signal1[globalIdx].y * signal2[globalIdx].y);
+      signal1[globalIdx].y = (signal1[globalIdx].x * signal2[globalIdx].y) + (signal1[globalIdx].y * signal2[globalIdx].x);
     }
+
+
+  /*const int numThreads = blockDim.x * gridDim.x;
+  const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
+  for (int i = threadID; i < size1; i += numThreads)
+  {
+    signal1[i].x = (signal1[i].x * signal2[i].x - signal1[i].y * signal2[i].y);
+    signal1[i].y = (signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x);
+  }*/
 
 }
 
@@ -129,14 +156,16 @@ void
 cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize) {
 
-  Complex *h1;
-  h1 = (Complex *)malloc(sizeof(Complex) * size1);
+  //Complex *h1;
+  //h1 = (Complex *)malloc(sizeof(Complex) * size1);
 
   signalFFT(d_signal1, size1);
-
   signalFFT(d_signal2, size2);
 
+  printDeviceData(d_signal1, size1, "H1 FFT");
+  printDeviceData(d_signal2, size2, "H2 FFT");
   pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
+  printDeviceData(d_signal1, size1, "PwProd");
 
 
 /*h1[0].x = 64.7652;      h1[0].y = 0;
@@ -173,9 +202,9 @@ h1[30].x = 1.7976;      h1[30].y = -0.8094;
 h1[31].x = -20.0979;    h1[31].y = 1.7253;*/
 
 
-  cudaMemcpy(d_signal1, h1, sizeof(Complex) * size1, cudaMemcpyHostToDevice);
+  //cudaMemcpy(d_signal1, h1, sizeof(Complex) * size1, cudaMemcpyHostToDevice);
 
-  signalIFFT(d_signal1, size1);
+  //signalIFFT(d_signal1, size1);
 
 }
 
@@ -237,8 +266,8 @@ int main()
       const dim3 blockSize(16, 16, 1);
       const dim3 gridSize(newsize / 16 + 1, newsize / 16 + 1, 1);
 
-      //printData(h1, newsize, "H Signal 1");
-      //printData(h2, newsize, "H Signal 2");
+      //printHostData(h1, newsize, "H Signal 1");
+      //printHostData(h2, newsize, "H Signal 2");
 
       cudaMalloc(&d1, sizeof(Complex) * newsize);
       cudaMalloc(&d2, sizeof(Complex) * newsize);
@@ -254,7 +283,7 @@ int main()
 
       normData(h1, newsize, newsize);
 
-      printData(h1, newsize, "Conv");
+      //printHostData(h1, newsize, "Conv");
 
       free(h1); free(h2);
       cudaFree(d1); cudaFree(d2);

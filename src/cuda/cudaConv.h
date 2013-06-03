@@ -11,7 +11,11 @@ int
 checkCUDA();
 
 void
-printData(Complex *a, int size, char *msg);
+printHostData(Complex *a, int size, char *msg);
+
+
+void
+printDeviceData(Complex *a, int size, char *msg);
 
 void
 normData(Complex *a, int size, float norm);
