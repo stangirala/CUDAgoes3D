@@ -1,3 +1,6 @@
+#ifndef CUDACONV_H
+#define CUDACONV_H
+
 #include <cuda_runtime.h>
 #include <cufft.h>
 #include <cuda.h>
@@ -45,3 +48,5 @@ cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
 
 int
 allocateAndPad(Complex **a, int s1, Complex **b, int s2);
+
+#endif

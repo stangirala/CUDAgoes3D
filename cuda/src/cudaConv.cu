@@ -4,11 +4,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <cuda_runtime.h>
-#include <cufft.h>
-#include <cuda.h>
-
-
 int checkCUDA() {
 
   //TODO: Check that it is linux first.
@@ -32,7 +27,7 @@ int checkCUDA() {
 void
 printHostData(Complex *a, int size, char *msg) {
 
-  if (msg == "") printf("\n");
+  if (strcmp(msg, "") == 0) printf("\n");
   else printf("%s\n", msg);
 
   for (int i = 0; i < size; i++)
@@ -47,7 +42,7 @@ printDeviceData(Complex *a, int size, char *msg) {
 
   h = (Complex *) malloc(sizeof(Complex) * size);
 
-  if (msg == "") printf("\n");
+  if (strcmp(msg, "") == 0) printf("\n");
   else printf("%s\n", msg);
 
   cudaMemcpy(h, a, sizeof(Complex) * size, cudaMemcpyDeviceToHost);
@@ -273,7 +268,7 @@ int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
   return newsize;
 }
 
-int main()
+/*int main()
 {
 
   Complex *h1, *h2, *d1, *d2;
@@ -329,4 +324,4 @@ int main()
   }
 
   return 0;
-}
+}*/
