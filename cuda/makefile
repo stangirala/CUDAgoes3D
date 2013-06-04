@@ -1,4 +1,4 @@
-.PHONY: src
+.PHONY: src test clean
 
 all: src test
 
@@ -6,5 +6,9 @@ all: src test
 src:
 	cd src && $(MAKE) && cd ..
 
+test:
+	cd test && $(MAKE) && cd ..
+
 clean:
 	cd src && $(MAKE) clean && cd ..
+	cd test && $(MAKE) clean && cd ..

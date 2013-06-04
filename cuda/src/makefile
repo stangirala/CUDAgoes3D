@@ -96,6 +96,7 @@ CONVINC       := -I../include
 all: build
 
 build: cudaConv.o
+	mv cudaConv.o ../lib/
 
 cudaConv.o: cudaConv.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(CONVINC) $(INCLUDES) $(GENCODE_FLAGS) -o $@ -c $<
@@ -106,4 +107,4 @@ cudaConv.o: cudaConv.cu
 #	cp $@ ../../bin/$(OSLOWER)/$(TARGET)
 
 clean:
-	rm -f cudaConv.o
+	rm -f ../lib/cudaConv.o
