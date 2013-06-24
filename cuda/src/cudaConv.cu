@@ -4,6 +4,24 @@
 #include <stdlib.h>
 #include <math.h>
 
+
+/*
+#ifdef _WIN64
+  //define something for Windows (64-bit)
+#elif _WIN32
+  //define something for Windows (32-bit)
+#elif __APPLE__
+  #include "TargetConditionals.h"
+  #if TARGET_OS_MAC
+  #endif
+#elif __linux
+  // linux
+#elif __unix // all unices not caught above
+  // Unix
+#elif __posix
+  // POSIX
+#endif
+*/
 int checkCUDA() {
 
   //TODO: Check that it is linux first.
