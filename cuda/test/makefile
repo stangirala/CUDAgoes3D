@@ -26,7 +26,7 @@ DARWIN = $(strip $(findstring DARWIN, $(OSUPPER)))
 
 # Location of the CUDA Toolkit binaries and libraries
 CUDA_PATH       ?= /usr/local/cuda-5.0
-CUDA_INC_PATH   ?= -I$(CUDA_PATH)/include -I/home/sarma/lib/inc #Samples\v5.0\C\common\inc
+CUDA_INC_PATH   ?= -I$(CUDA_PATH)/include -I/home/vtangira/lib/inc #Samples\v5.0\C\common\inc
 CUDA_BIN_PATH   ?= $(CUDA_PATH)/bin
 ifneq ($(DARWIN),)
   CUDA_LIB_PATH  ?= $(CUDA_PATH)/lib
@@ -97,20 +97,18 @@ CUFFT					:= -lcufft
 # Target rules
 all: build
 
-build: test.out
-#build: cudaConv.out
-#build: cudaConv.o
+build: test.o
 
 test.o: test.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(CONVINC) $(CONVLIB) $(CUFFT) $(INCLUDES) $(GENCODE_FLAGS) -o $@ $<
 
-test.out: test.o
-	$(GCC) $(CCFLAGS) -o $@ $+ $(CONVLIB) $(CUFFT) $(LDFLAGS) $(EXTRA_LDFLAGS)
-	mkdir -p ../../bin/$(OSLOWER)/$(TARGET)
-	cp $@ ../../bin/$(OSLOWER)/$(TARGET)
+#test.out: test.o
+#	$(GCC) $(CCFLAGS) -o $@ $+ $(CONVLIB) $(CUFFT) $(LDFLAGS) $(EXTRA_LDFLAGS)
+#	mkdir -p ../../bin/$(OSLOWER)/$(TARGET)
+#	cp $@ ../../bin/$(OSLOWER)/$(TARGET)
 
 run: main
-	./test.out
+	./test.o
 
 clean:
 	rm -f test.o
