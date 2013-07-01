@@ -103,7 +103,7 @@ zeroFill(Complex *h_signal, int size) {
 
 // FFT a signal that's on the _DEVICE_.
 void
-signalFFT(Complex *d_signal, int signal_size) {
+signalFFT1D(Complex *d_signal, int signal_size) {
 
   // Handle type used to store and execute CUFFT plans.
   // Essentially allocates the resources and sort of interns
@@ -111,13 +111,13 @@ signalFFT(Complex *d_signal, int signal_size) {
 
   cufftHandle plan;
   if (cufftPlan1d(&plan, signal_size, CUFFT_C2C, 1) != CUFFT_SUCCESS) {
-    printf("Failed to plan FFT\n");
+    printf("Failed to plan 1D FFT\n");
     exit(1);
   }
 
   // Execute the plan.
   if (cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_FORWARD) != CUFFT_SUCCESS) {
-    printf ("Failed Executing FFT\n");
+    printf ("Failed Executing 1D FFT\n");
     exit(1);
   }
 
@@ -126,19 +126,65 @@ signalFFT(Complex *d_signal, int signal_size) {
 
 // Reverse of the signalFFT(.) function.
 void
-signalIFFT(Complex *d_signal, int signal_size) {
+signalIFFT1D(Complex *d_signal, int signal_size) {
 
   cufftHandle plan;
 
   cufftPlan1d(&plan, signal_size, CUFFT_C2C, 1);
   if ((cudaGetLastError()) != cudaSuccess) {
-    printf ("Failed to plan IFFT.\n");
+    printf ("Failed to plan 1D IFFT.\n");
     exit(1);
   }
 
   cufftExecC2C(plan, (cufftComplex *) d_signal, (cufftComplex *) d_signal, CUFFT_INVERSE);
   if ((cudaGetLastError()) != cudaSuccess) {
-    printf ("Failed to Execute IFFT.\n");
+    printf ("Failed to Execute 1D IFFT.\n");
+    exit(1);
+  }
+
+}
+
+
+// 3D FFT on the _device_
+void
+signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
+
+  cufftHandle plan;
+
+  cufftPlan3d(&plan, NX, NY, NZ, CUFFT_C2C);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("Failed to plan 3D FFT.\n");
+    exit(1);
+  }
+
+  cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("Failed to plan 3D FFT.\n");
+    exit(1);
+  }
+
+}
+
+
+// 3D IFFT on the _device_
+void
+signalIFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
+
+  cufftHandle plan;
+  //int dim[] = {NX, NY, NZ};
+
+  cufftPlan3d(&plan, NX, NY, NZ, CUFFT_C2C);
+  /*cufftPlanMany(&plan, 3, dim, NULL, 1, NX*NY*NZ,
+                               NULL, 1, NX*NY*NZ,
+                               CUFFT_C2C, 1);*/
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("Failed to plan 3D IFFT.\n");
+    exit(1);
+  }
+
+  cufftExecC2C(plan, d_signal, d_signal, CUFFT_INVERSE);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("Failed to plan 3D IFFT.\n");
     exit(1);
   }
 
@@ -166,30 +212,22 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
     signal1[i].y = temp.y;
   }
 
-  /*const int numThreads = blockDim.x * gridDim.x;
-  const int threadID = blockIdx.x * blockDim.x + threadIdx.x;
-  for (int i = threadID; i < size1; i += numThreads)
-  {
-    signal1[i].x = (signal1[i].x * signal2[i].x - signal1[i].y * signal2[i].y);
-    signal1[i].y = (signal1[i].x * signal2[i].y + signal1[i].y * signal2[i].x);
-  }*/
-
 }
 
 void
-cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
+cudaConvolution1D(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize) {
 
   //Complex *h1;
   //h1 = (Complex *)malloc(sizeof(Complex) * size1);
 
-  signalFFT(d_signal1, size1);
+  signalFFT1D(d_signal1, size1);
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("signal 1 fft failed.\n");
     exit(1);
   }
 
-  signalFFT(d_signal2, size2);
+  signalFFT1D(d_signal2, size2);
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("signal 2 fft failed.\n");
     exit(1);
@@ -251,7 +289,7 @@ h1[31].x = -20.0979;    h1[31].y = 1.7253;*/
 
   //cudaMemcpy(d_signal1, h1, sizeof(Complex) * size1, cudaMemcpyHostToDevice);
 
-  signalIFFT(d_signal1, size1);
+  signalIFFT1D(d_signal1, size1);
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("signal ifft failed.\n");
     exit(1);
@@ -284,4 +322,9 @@ int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
   }
 
   return newsize;
+}
+
+void cudaConvInit() {
+
+  srand(time(NULL));
 }

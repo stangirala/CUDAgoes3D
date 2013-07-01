@@ -5,7 +5,7 @@ int main()
 
   Complex *h1, *h2, *d1, *d2;
 
-  int s1, s2, newsize, i, dim;
+  int s1, s2, newsize;
 
 
   if (checkCUDA()) {
@@ -13,42 +13,42 @@ int main()
     exit(1);
   }
 
+  cudaConvInit();
 
-  dim = 1;
+  s1 = 16 + 16 + 16;
+  s2 = 16 + 16 + 16;
 
-  s1 = 16;
-  s2 = 16;
+  newsize = allocateAndPad(&h1, s1, &h2, s2);
 
-  for (i = 0; i < dim; i++)  {
+  randomFill(h1, s1, REAL);
+  randomFill(h2, s2, REAL);
+  printHostData(h1, newsize, "h1");
+  printHostData(h2, newsize, "h2");
 
-      newsize = allocateAndPad(&h1, s1, &h2, s2);
+  // Kernel Block and Grid Size.
+  const dim3 blockSize(16, 16, 1);
+  const dim3 gridSize(newsize / 16 + 1, newsize / 16 + 1, 1);
 
-      randomFill(h1, s1, REAL);
-      randomFill(h2, s2, REAL);
+  cudaMalloc(&d1, sizeof(Complex) * newsize);
+  cudaMalloc(&d2, sizeof(Complex) * newsize);
 
-      // Kernel Block and Grid Size.
-      const dim3 blockSize(16, 16, 1);
-      const dim3 gridSize(newsize / 16 + 1, newsize / 16 + 1, 1);
+  cudaMemcpy(d1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
+  cudaMemcpy(d2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
 
-      cudaMalloc(&d1, sizeof(Complex) * newsize);
-      cudaMalloc(&d2, sizeof(Complex) * newsize);
+  //cudaConvolution1D(d1, newsize, d2, newsize, blockSize, gridSize);
 
-      cudaMemcpy(d1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
-      cudaMemcpy(d2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
+  signalFFT3D(d1, 16, 16, 16);
 
-      cudaConvolution(d1, newsize, d2, newsize, blockSize, gridSize);
+  cudaMemcpy(h1, d1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
 
-      cudaMemcpy(h1, d1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
+  normData(h1, newsize, newsize);
 
-      normData(h1, newsize, newsize);
+  printHostData(h1, newsize, "h1 3D FFT");
 
-      printHostData(h1, newsize, "Conv");
+  free(h1); free(h2);
+  cudaFree(d1); cudaFree(d2);
 
-      free(h1); free(h2);
-      cudaFree(d1); cudaFree(d2);
-
-      cudaDeviceReset();
-  }
+  cudaDeviceReset();
 
   return 0;
 }

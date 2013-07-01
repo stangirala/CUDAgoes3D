@@ -13,6 +13,8 @@ typedef float2 Complex;
 int
 checkCUDA();
 
+void cudaConvInit();
+
 void
 printHostData(Complex *a, int size, char *msg);
 
@@ -31,11 +33,16 @@ void
 zeroFill(Complex *h_signal, int size);
 
 void
-signalFFT(Complex *d_signal, int signal_size);
+signalFFT1D(Complex *d_signal, int signal_size);
 
 
 void
-signalIFFT(Complex *d_signal, int signal_size);
+signalIFFT1D(Complex *d_signal, int signal_size);
+
+void
+signalFFT3D(Complex *d_signal, int NX, int NY, int NZ);
+
+void signalIFFT3D(Complex *d_signal, int NX, int NY, int NZ);
 
 
 __global__ void
@@ -43,7 +50,7 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2);
 
 
 void
-cudaConvolution(Complex *d_signal1, int size1, Complex *d_signal2,
+cudaConvolution1D(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize);
 
 int
