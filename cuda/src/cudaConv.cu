@@ -146,7 +146,7 @@ signalIFFT1D(Complex *d_signal, int signal_size) {
 
 
 // 3D FFT on the _device_
-void
+/*void
 signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
 
   cufftHandle plan;
@@ -163,20 +163,34 @@ signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
     exit(1);
   }
 
-}
+}*/
+void
+signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
 
+  if (cufftPlanMany(&plan, NRANK, n,
+              NULL, 1, NX*NY*NZ, // *inembed, istride, idist
+              NULL, 1, NX*NY*NZ, // *onembed, ostride, odist
+              CUFFT_C2C, BATCH) != CUFFT_SUCCESS){
+    printf ("Failed to plan, new\n");
+    return;
+  }
+
+
+  if (cufftExecC2C(plan, data, data, CUFFT_FORWARD) != CUFFT_SUCCESS){
+    printf ("Failed to exec\n");
+    return;
+  }
+
+
+}
 
 // 3D IFFT on the _device_
 void
 signalIFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
 
   cufftHandle plan;
-  //int dim[] = {NX, NY, NZ};
 
   cufftPlan3d(&plan, NX, NY, NZ, CUFFT_C2C);
-  /*cufftPlanMany(&plan, 3, dim, NULL, 1, NX*NY*NZ,
-                               NULL, 1, NX*NY*NZ,
-                               CUFFT_C2C, 1);*/
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("Failed to plan 3D IFFT.\n");
     exit(1);
