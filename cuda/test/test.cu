@@ -17,6 +17,7 @@ int main()
 
   s1 = 16 + 16 + 16;
   s2 = 16 + 16 + 16;
+  //s1 = 16; s2 = 16;
 
   newsize = allocateAndPad(&h1, s1, &h2, s2);
 
@@ -35,9 +36,9 @@ int main()
   cudaMemcpy(d1, h1, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
   cudaMemcpy(d2, h2, sizeof(Complex) * newsize, cudaMemcpyHostToDevice);
 
-  //cudaConvolution1D(d1, newsize, d2, newsize, blockSize, gridSize);
+  cudaConvolution1D(d1, newsize, d2, newsize, blockSize, gridSize);
 
-  signalFFT3D(d1, 16, 16, 16);
+  //signalFFT3D(d1, 16, 16, 16);
 
   cudaMemcpy(h1, d1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
 
