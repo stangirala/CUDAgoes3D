@@ -41,50 +41,43 @@ void Odeenfft() {
 
 void trittfft() {
 
-  Complex *h1, *d1, *th1, *th2, *th3;
+  Complex *h1, *d1;
 
-  int s1;
+  int s1, i;
 
 
   s1 = 16;
 
-  th1 = (Complex *) malloc(sizeof(Complex) * s1);
-  th2 = (Complex *) malloc(sizeof(Complex) * s1);
-  th3 = (Complex *) malloc(sizeof(Complex) * s1);
+  h1 = (Complex *) malloc(sizeof(Complex) * s1 * s1 * s1);
 
-  h1 = (Complex *) malloc(sizeof(Complex) * (3 * s1));
+  randomFill(h1, s1 * s1 * s1, REAL);
+  for (i = (s1 + s1 + s1); i < (s1 * s1 * s1); i++) {
+    h1[i].x = 0.0; h1[i].y = 0.0;
+  }
+  printf ("h1\n");
+  for (i = 0; i < (s1 + s1 + s1); i++)
+    printf ("%f  %f\n", h1[i].x, h1[i].y);
+  printf ("\n");
 
-  randomFill(th1, s1, REAL);
-  printHostData(th1, s1, "th1");
 
-  randomFill(th2, s1, REAL);
-  printHostData(th2, s1, "th2");
+  cudaMalloc(&d1, sizeof(Complex) * s1 * s1 * s1);
 
-  randomFill(th3, s1, REAL);
-  printHostData(th3, s1, "th3");
-
-  memcpy(h1, th1, sizeof(Complex) * s1);
-  memcpy((h1 + s1), th2, sizeof(Complex) * s1);
-  memcpy((h1 + 2*s1), th3, sizeof(Complex) * s1);
-  printHostData(h1, 3*s1, "h1");
-
-  cudaMalloc(&d1, sizeof(Complex) * (3 * s1));
-
-  cudaMemcpy(d1, th1, sizeof(Complex) * s1, cudaMemcpyHostToDevice);
-  cudaMemcpy((d1 + s1), th2, sizeof(Complex) * s1, cudaMemcpyHostToDevice);
-  cudaMemcpy((d1 + 2*s1), th3, sizeof(Complex) * s1, cudaMemcpyHostToDevice);
-
+  cudaMemcpy(d1, h1, sizeof(Complex) * s1 * s1 * s1, cudaMemcpyHostToDevice);
 
   // Kernel Block and Grid Size.
   const dim3 blockSize(16, 16, 1);
-  const dim3 gridSize((3 * s1) / 16 + 1, (3 * s1) / 16 + 1, 1);
+  const dim3 gridSize((s1 * s1 * s1) / 16 + 1, (s1 * s1 * s1) / 16 + 1, 1);
 
 
   signalFFT3D(d1, s1, s1, s1);
+  signalIFFT3D(d1, s1, s1, s1);
 
-  cudaMemcpy(h1, d1, sizeof(Complex) * (3 * s1), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h1, d1, sizeof(Complex) * (s1 + s1 + s1), cudaMemcpyDeviceToHost);
 
-  printHostData(h1, 3 * s1, "h1 3D FFT");
+  normData(h1, (s1 + s1 + s1), s1 * s1 * s1);
+
+  printHostData(h1, s1 + s1 + s1, "h1 3D FFT");
+  printf ("\n");
 
   free(h1);
   cudaFree(d1);
@@ -99,7 +92,7 @@ int main()
     exit(1);
   }
 
-  cudaConvInit();
+  //cudaConvInit();
 
   //Odeenfft();
 
