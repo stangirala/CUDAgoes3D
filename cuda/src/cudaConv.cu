@@ -146,24 +146,6 @@ signalIFFT1D(Complex *d_signal, int signal_size) {
 
 
 // 3D FFT on the _device_
-/*void
-signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
-
-  cufftHandle plan;
-
-  cufftPlan3d(&plan, NX, NY, NZ, CUFFT_C2C);
-  if ((cudaGetLastError()) != cudaSuccess) {
-    printf ("Failed to plan 3D FFT.\n");
-    exit(1);
-  }
-
-  cufftExecC2C(plan, d_signal, d_signal, CUFFT_FORWARD);
-  if ((cudaGetLastError()) != cudaSuccess) {
-    printf ("Failed to plan 3D FFT.\n");
-    exit(1);
-  }
-
-}*/
 void
 signalFFT3D(Complex *d_signal, int NX, int NY, int NZ) {
 
@@ -236,6 +218,7 @@ pwProd(Complex *signal1, int size1, Complex *signal2, int size2) {
   }
 
 }
+
 
 void
 cudaConvolution1D(Complex *d_signal1, int size1, Complex *d_signal2,
@@ -320,7 +303,42 @@ h1[31].x = -20.0979;    h1[31].y = 1.7253;*/
 }
 
 
-int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
+void
+cudaConvolution3D(Complex *d_signal1, int size1, Complex *d_signal2,
+                int size2, dim3 blockSize, dim3 gridSize) {
+
+
+  signalFFT3D(d_signal1, size1, size1, size1);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("signal 1 fft failed.\n");
+    exit(1);
+  }
+
+  signalFFT3D(d_signal2, size2, size2, size2);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("signal 2 fft failed.\n");
+    exit(1);
+  }
+
+  printDeviceData(d_signal1, size1, "H1 FFT");
+  printDeviceData(d_signal2, size2, "H2 FFT");
+
+  pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("pwProd kernel failed.\n");
+    exit(1);
+  }
+  printDeviceData(d_signal1, size1, "PwProd");
+
+  signalIFFT3D(d_signal1, size1, size2, size2);
+  if ((cudaGetLastError()) != cudaSuccess) {
+    printf ("signal ifft failed.\n");
+    exit(1);
+  }
+}
+
+
+int allocateAndPad1D(Complex **a, int s1, Complex **b, int s2) {
 
   int oldsize, newsize, i;
 
@@ -342,6 +360,33 @@ int allocateAndPad(Complex **a, int s1, Complex **b, int s2) {
   for (i = oldsize; i < newsize; i++) {
     (*b)[i].x = 0;
     (*b)[i].y = 0;
+  }
+
+  return newsize;
+}
+
+int allocateAndPad3D(Complex **a, int s1, Complex **b, int s2) {
+
+  int oldsize, newsize, i;
+
+  newsize = s1 + s2 - 1;
+
+  while (!((newsize != 0) && !(newsize & (newsize - 1)))) {
+    newsize++;
+  }
+
+  oldsize = s1;
+  *a = (Complex *) malloc(sizeof(Complex) * newsize * newsize * newsize);
+  for (i = oldsize; i < newsize; i++) {
+    (*((*a) + i)).x = 0;
+    (*((*a) + i)).y = 0;
+  }
+
+  oldsize = s2;
+  *b = (Complex *) malloc(sizeof(Complex) * newsize * newsize * newsize);
+  for (i = oldsize; i < newsize; i++) {
+    (*((*b) + i)).x = 0;
+    (*((*b) + i)).y = 0;
   }
 
   return newsize;

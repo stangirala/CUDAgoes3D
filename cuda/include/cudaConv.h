@@ -53,7 +53,14 @@ void
 cudaConvolution1D(Complex *d_signal1, int size1, Complex *d_signal2,
                 int size2, dim3 blockSize, dim3 gridSize);
 
+void
+cudaConvolution3D(Complex *d_signal1, int size1, Complex *d_signal2,
+                int size2, dim3 blockSize, dim3 gridSize);
+
 int
-allocateAndPad(Complex **a, int s1, Complex **b, int s2);
+allocateAndPad1D(Complex **a, int s1, Complex **b, int s2);
+
+int
+allocateAndPad3D(Complex **a, int s1, Complex **b, int s2);
 
 #endif
