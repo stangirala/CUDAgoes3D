@@ -239,15 +239,15 @@ cudaConvolution1D(Complex *d_signal1, int size1, Complex *d_signal2,
     exit(1);
   }
 
-  printDeviceData(d_signal1, size1, "H1 FFT");
-  printDeviceData(d_signal2, size2, "H2 FFT");
+  //printDeviceData(d_signal1, size1, "H1 FFT");
+  //printDeviceData(d_signal2, size2, "H2 FFT");
 
   pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("pwProd kernel failed.\n");
     exit(1);
   }
-  printDeviceData(d_signal1, size1, "PwProd");
+  //printDeviceData(d_signal1, size1, "PwProd");
 
   /*Complex *h1, *h2;
   h1 = (Complex *) malloc(sizeof(Complex) * size1);
@@ -320,15 +320,15 @@ cudaConvolution3D(Complex *d_signal1, int size1, Complex *d_signal2,
     exit(1);
   }
 
-  printDeviceData(d_signal1, size1, "H1 FFT");
-  printDeviceData(d_signal2, size2, "H2 FFT");
+  //printDeviceData(d_signal1, size1, "H1 FFT");
+  //printDeviceData(d_signal2, size2, "H2 FFT");
 
   pwProd<<<gridSize, blockSize>>>(d_signal1, size1, d_signal2, size2);
   if ((cudaGetLastError()) != cudaSuccess) {
     printf ("pwProd kernel failed.\n");
     exit(1);
   }
-  printDeviceData(d_signal1, size1, "PwProd");
+  //printDeviceData(d_signal1, size1, "PwProd");
 
   signalIFFT3D(d_signal1, size1, size2, size2);
   if ((cudaGetLastError()) != cudaSuccess) {

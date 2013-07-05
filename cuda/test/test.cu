@@ -1,3 +1,13 @@
+/**
+ * Test file for the functions in cudaConv.h
+ * There are functions that print device and
+ * host data. They ease the debugging process.
+ * Odeenfft() presents 1D convolution and Trittfft().
+ * 3D convolution. (Odeen and Tritt taken from Asimov's The Gods Themselves,
+ * stand for one and three in Russian.)
+ *
+*/
+
 #include <cudaConv.h>
 
 void Odeenfft() {
@@ -7,7 +17,8 @@ void Odeenfft() {
   int s1, s2, newsize;
 
 
-  s1 = 16; s2 = 16;
+  s1 = 32;
+  s2 = 32;
 
   newsize = allocateAndPad1D(&h1, s1, &h2, s2);
 
@@ -30,8 +41,6 @@ void Odeenfft() {
 
   cudaMemcpy(h1, d1, sizeof(Complex) * newsize, cudaMemcpyDeviceToHost);
 
-  printDeviceData(d1, newsize, "D1");
-
   normData(h1, newsize, newsize);
 
   printHostData(h1, newsize, "1D Convolution");
@@ -48,8 +57,8 @@ void Trittfft() {
   int s1, s2, newsize;
 
 
-  s1 = 16;
-  s2 = 16;
+  s1 = 32;
+  s2 = 32;
 
   newsize = allocateAndPad3D(&h1, s1, &h2, s2);
 
